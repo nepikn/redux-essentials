@@ -1,5 +1,5 @@
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
-import React from "react";
+import React, { useState } from "react";
 import { selectCurrentUsername } from "../auth/authSlice";
 import { addPost } from "./postsSlice";
 
@@ -16,8 +16,11 @@ interface AddPostFormElements extends HTMLFormElement {
 export const AddPostForm = () => {
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectCurrentUsername)!;
+  const [addRequestStatus, setAddRequestStatus] = useState<
+    "idle" | "pending"
+  >("idle");
 
-  const handleSubmit = (
+  const handleSubmit = async (
     e: React.FormEvent<AddPostFormElements>,
   ) => {
     e.preventDefault();
@@ -26,9 +29,16 @@ export const AddPostForm = () => {
     const title = elements.postTitle.value;
     const content = elements.postContent.value;
 
-    dispatch(addPost({ title, content, user }));
+    try {
+      setAddRequestStatus("pending");
+      await dispatch(addPost({ title, content, user })).unwrap();
 
-    e.currentTarget.reset();
+      e.currentTarget.reset();
+    } catch (err) {
+      console.error("Failed to save the post: ", err);
+    } finally {
+      setAddRequestStatus("idle");
+    }
   };
 
   return (
@@ -39,17 +49,19 @@ export const AddPostForm = () => {
         <input
           type="text"
           id="postTitle"
-          defaultValue=""
+          defaultValue="t"
           required
         />
         <label htmlFor="postContent">Content:</label>
         <textarea
           id="postContent"
           name="postContent"
-          defaultValue=""
+          defaultValue="c"
           required
         />
-        <button>Save Post</button>
+        <button disabled={addRequestStatus != "idle"}>
+          Save Post
+        </button>
       </form>
     </section>
   );

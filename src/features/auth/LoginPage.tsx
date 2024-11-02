@@ -40,11 +40,16 @@ export const LoginPage = () => {
       <h3>Please log in:</h3>
       <form onSubmit={handleSubmit}>
         <label htmlFor="username">User:</label>
-        <select id="username" name="username" required>
+        <select
+          id="username"
+          name="username"
+          required
+          value={users[0]?.id}
+        >
           <option value=""></option>
           {usersOptions}
         </select>
-        <button>Log In</button>
+        <button autoFocus>Log In</button>
       </form>
     </section>
   );

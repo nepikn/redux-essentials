@@ -4,6 +4,7 @@ import { Provider } from "react-redux";
 import App from "./App";
 import { worker } from "./api/server";
 import { store } from "./app/store";
+import { fetchUsers } from "./features/users/usersSlice";
 import "./index.css";
 import "./primitiveui.css";
 
@@ -11,6 +12,8 @@ import "./primitiveui.css";
 async function start() {
   // Start our mock API server
   await worker.start({ onUnhandledRequest: "bypass" });
+
+  store.dispatch(fetchUsers());
 
   const root = createRoot(document.getElementById("root")!);
 

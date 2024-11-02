@@ -35,10 +35,10 @@
 - VDOM
   - the in-memory representation of the actual DOM
 - screen update
-  1. trigger: on state updated
-  2. render: call components whose state updated
-  3. reconciliate: caculate the difference between the renders
-  4. commit: apply the difference to the DOM nodes
+  1. `trigger` on state updated
+  2. `render` call components whose state updated
+  3. `reconciliate` caculate the difference between the renders
+  4. `commit` apply the difference to the DOM nodes
 
 ## Redux
 
@@ -71,18 +71,22 @@ manages global state centrally
   - `PREPARE_ACTION: (...args) => Omit<ACTION, 'type'>`
 - `THUNK` / `THUNK_ACTION`
   - `(dispatch, getState) => void`
-  - `THUNK_ACTION_CREATOR: (...args) => THUNK`
+  - `THUNK_CREATOR: (...args) => THUNK`
+  - `PAYLOAD_CREATOR`
+    - `async (args, thunkAPI) => Promise<ACTION.payload>`
+  - `THUNK_API`
+    - `dispatch`
+    - `getState`
+    - ...
 - `CASE_REDUCER`
   - should be pure
   - supports mutation by `immer`
-    - `(state, action: PayloadAction<PAYLOAD_TYPE>) => void`
+    - `(state, action: PayloadAction<ACTION.payload>) => void`
     - to prdouce new `STATE` [return it without modifying `state`](https://immerjs.github.io/immer/return)
-  - supports async by middlewares
 - selector <!-- todo: purpose -->
-  - slice seletors
-  - `useSeletor`
 - middleware
-  - executed between actions dipatched and reach reducers
+  - executed between an action dispatched and reduced
+  - `redux-thunk` enables `store.dispatch(THUNK)`
 
 ### `configureStore(OPTIONS)`
 
@@ -98,7 +102,9 @@ manages global state centrally
 returns
 
 - `.getState()`
-- `.dispatch(ACTION | ACTION_CREATOR() | )`
+- `.dispatch`
+  - `(ACTION): ACTION`
+  - `(THUNK)` see `createAsyncThunk`
 
 ### With React
 
@@ -111,16 +117,23 @@ returns
   - `(SELECTOR)`
     - `SLICE.selectors.NAME`
     - `(rootState) => SELECTED`
-  - `.withType<ReturnType<typeof STORE.getState>>`
+  - `.withType<RootState>()`
 - `useDispatch`
-  - `(ACTION | ACTION_CREATOR())`
-  - `.withType<typeof STORE.dispatch>`
+  - `.withType<AppDispatch>()`
+  - see `.dispatch`
+- `createAsyncThunk`
+  - `.withTypes<{state: RootState, dispatch: AppDispatch}>()`
+
+given
+
+- `type RootState = ReturnType<typeof STORE.getState>`
+- `type AppDispatch = typeof STORE.dispatch`
 
 ### `createSlice(OPTIONS)`
 
 a global state may consist of multiple slices
 
-- `name` as the `STATE_NAME`
+- `name: STATE_NAME`
 - `initialState`
 - `reducers`
   - `{EVENT: CASE_REDUCER}`
@@ -129,9 +142,12 @@ a global state may consist of multiple slices
     - `prepare: PREPARE_ACTION`
   - `(creators) => ({EVENT: creators.METHOD()})`
     - `.reducer(CASE_REDUCER)`
-    - `.preparedReducer(PREPARE_ACTION)`
-    - `.asyncThunk`
+    - `.preparedReducer(PREPARE_ACTION, CASE_REDUCER)`
+    - `.asyncThunk(PAYLOAD_CREATOR, {})`
+      - `options: THUNK_OPTIONS`
+      - `pending | fulfilled | rejected: CASE_REDUCER`
   - `extraReducers: (builder) => builder.METHOD()`
+    - handle actions created beyond this slice
     - `.addCase(ACTION.type | ACTION_CREATOR, CASE_REDUCER)`
     - `.addMatcher`
     - `.addDefaultCase`
@@ -142,23 +158,36 @@ returns
 
 - `.reducer` a slice reducer for `ReducersMapObject`
 - `.actions` action creators created from `OPTIONS.reducers`
+- `.selectors`
 
 ### `createAsyncThunk`
 
 ```javascript
-const fetcher = createAsyncThunk(...args);
+const thunkCreator = createAsyncThunk(
+  TYPE,
+  // PAYLOAD_CREATOR
+  async (args, thunkAPI) => (await fetch(ENDPOINT)).json(),
+  THUNK_OPTIONS,
+);
 
-fetcher(INPUT);
+const thunk = thunkCreator(...args);
+const thunkResult = useDispatch()(thunk);
 ```
 
-- `args`
-  - `ACTION.type`
-  - `async (INPUT, thunkAPI) => Promise?<ACTION.payload>`
-  - `OPTIONS`
-- `fetcher`
-  - `.pending`
-  - `.fulfilled`
-  - `.rejected`
+- `THUNK_OPTIONS`
+  - `condition`
+    - `(args, { getState, extra }): Promise?<boolean>`
+    - return `false` to cancel `thunk`
+- `thunkCreator`
+  - `.{pending | fulfilled | rejected}`
+    - returns `ACTION_CREATOR`
+    - for `extraReducers`
+- `thunkResult`
+
+|             | `await thunkResult`                              | `await thunkResult.unwrap()` |
+| ----------- | ------------------------------------------------ | ---------------------------- |
+| `fulfilled` | returns `{type: 'TYPE/fulfilled', payload, ...}` | returns `payload`            |
+| `rejected`  | returns `{type: 'TYPE/rejected', error, ...}`    | throws `error`               |
 
 ## React Router v6.26
 

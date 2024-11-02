@@ -1,9 +1,11 @@
+import { client } from "@/api/client";
+import type { RootState } from "@/app/store";
+import { createAppAsyncThunk } from "@/app/withTypes";
 import {
   createSlice,
   nanoid,
   type PayloadAction,
 } from "@reduxjs/toolkit";
-import { sub } from "date-fns";
 import { userLoggedOut } from "../auth/authSlice";
 
 export interface Reactions {
@@ -26,6 +28,29 @@ export interface Post {
 }
 
 type PostUpdate = Pick<Post, "id" | "title" | "content">;
+type PostAdd = Pick<Post, "title" | "content" | "user">;
+
+export const fetchPosts = createAppAsyncThunk(
+  "posts/fetch",
+  async () => {
+    const res = await client.get<Post[]>("fakeApi/posts");
+    return res.data;
+  },
+  {
+    condition(_, { getState }) {
+      const status = (getState() as RootState).posts.status;
+      return status == "idle";
+    },
+  },
+);
+
+export const addPost = createAppAsyncThunk(
+  "posts/add",
+  async (post: PostAdd) => {
+    const res = await client.post<Post>("fakeApi/posts", post);
+    return res.data;
+  },
+);
 
 const initialReactions: Reactions = {
   thumbsUp: 0,
@@ -35,24 +60,17 @@ const initialReactions: Reactions = {
   eyes: 0,
 };
 
-const initialState: Post[] = [
-  {
-    id: "1",
-    title: "First Post!",
-    content: "Hello!",
-    user: "0",
-    date: sub(new Date(), { minutes: 10 }).toISOString(),
-    reactions: initialReactions,
-  },
-  {
-    id: "2",
-    title: "Second Post",
-    content: "More text",
-    user: "2",
-    date: sub(new Date(), { minutes: 5 }).toISOString(),
-    reactions: initialReactions,
-  },
-];
+interface PostsState {
+  posts: Post[];
+  status: "idle" | "pending" | "succeeded" | "failed";
+  error: string | null;
+}
+
+const initialState: PostsState = {
+  posts: [],
+  status: "idle",
+  error: null,
+};
 
 const postsSlice = createSlice({
   name: "posts",
@@ -70,11 +88,13 @@ const postsSlice = createSlice({
         };
       },
       reducer(state, action: PayloadAction<Post>) {
-        state.push(action.payload);
+        state.posts.push(action.payload);
       },
     },
     updatePost(state, { payload }: PayloadAction<PostUpdate>) {
-      const oldPost = state.find((post) => post.id == payload.id);
+      const oldPost = state.posts.find(
+        (post) => post.id == payload.id,
+      );
       if (oldPost) {
         Object.assign(oldPost, payload);
       }
@@ -87,26 +107,44 @@ const postsSlice = createSlice({
       }>,
     ) {
       const { postId, reaction } = action.payload;
-      const post = state.find((post) => post.id === postId);
+      const post = state.posts.find((post) => post.id === postId);
       if (post) {
         post.reactions[reaction]++;
       }
     },
   },
   extraReducers(builder) {
-    builder.addCase(userLoggedOut, (state) => {
-      return [];
-    });
-  },
-  selectors: {
-    selectAllPosts: (state) => state,
-    selectPostById: (state, id) =>
-      state.find((post) => post.id == id),
+    builder
+      .addCase(userLoggedOut, (state) => initialState)
+      .addCase(fetchPosts.pending, (state, { payload }) => {
+        state.status = "pending";
+      })
+      .addCase(fetchPosts.fulfilled, (state, { payload }) => {
+        state.posts = payload;
+        state.status = "succeeded";
+      })
+      .addCase(fetchPosts.rejected, (state, { error }) => {
+        state.error = error.message ?? "Unknown Error";
+        state.status = "failed";
+      })
+      .addCase(addPost.fulfilled, (state, { payload }) => {
+        state.posts.push(payload);
+      });
   },
 });
 
 export default postsSlice.reducer;
-export const { addPost, updatePost, addReaction } =
-  postsSlice.actions;
-export const { selectAllPosts, selectPostById } =
-  postsSlice.selectors;
+export const { updatePost, addReaction } = postsSlice.actions;
+
+export const selectAllPosts = (state: RootState) =>
+  state.posts.posts;
+
+export const selectPostById = (
+  state: RootState,
+  postId: string,
+) => state.posts.posts.find((post) => post.id === postId);
+
+export const selectPostsStatus = (state: RootState) =>
+  state.posts.status;
+export const selectPostsError = (state: RootState) =>
+  state.posts.error;
