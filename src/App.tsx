@@ -11,6 +11,8 @@ import { LoginPage } from "./features/auth/LoginPage";
 import { EditPostForm } from "./features/posts/EditPostForm";
 import { PostsMainPage } from "./features/posts/PostsMainPage";
 import { SinglePostPage } from "./features/posts/SinglePostPage";
+import { UserPage } from "./features/users/UserPage";
+import { UsersList } from "./features/users/UsersList";
 
 const ProtectedRoute = ({
   children,
@@ -49,6 +51,11 @@ function App() {
                   <Route
                     path="/editPost/:postId"
                     element={<EditPostForm />}
+                  />
+                  <Route path="/users" element={<UsersList />} />
+                  <Route
+                    path="/users/:userId"
+                    element={<UserPage />}
                   />
                 </Routes>
               </ProtectedRoute>

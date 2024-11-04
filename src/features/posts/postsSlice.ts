@@ -6,7 +6,7 @@ import {
   nanoid,
   type PayloadAction,
 } from "@reduxjs/toolkit";
-import { userLoggedOut } from "../auth/authSlice";
+import { logout } from "../auth/authSlice";
 
 export interface Reactions {
   thumbsUp: number;
@@ -115,7 +115,7 @@ const postsSlice = createSlice({
   },
   extraReducers(builder) {
     builder
-      .addCase(userLoggedOut, (state) => initialState)
+      .addCase(logout.fulfilled, (state) => initialState)
       .addCase(fetchPosts.pending, (state, { payload }) => {
         state.status = "pending";
       })
@@ -143,6 +143,15 @@ export const selectPostById = (
   state: RootState,
   postId: string,
 ) => state.posts.posts.find((post) => post.id === postId);
+
+export const selectPostsByUser = (
+  state: RootState,
+  userId: string,
+) => {
+  const allPosts = selectAllPosts(state);
+  // ❌ This seems suspicious! See more details below
+  return allPosts.filter((post) => post.user === userId);
+};
 
 export const selectPostsStatus = (state: RootState) =>
   state.posts.status;
