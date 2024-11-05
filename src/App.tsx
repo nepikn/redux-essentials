@@ -8,6 +8,7 @@ import { useAppSelector } from "./app/hooks";
 import { Navbar } from "./components/Navbar";
 import { selectCurrentUsername } from "./features/auth/authSlice";
 import { LoginPage } from "./features/auth/LoginPage";
+import { NotificationsList } from "./features/notifications/NotificationsList";
 import { EditPostForm } from "./features/posts/EditPostForm";
 import { PostsMainPage } from "./features/posts/PostsMainPage";
 import { SinglePostPage } from "./features/posts/SinglePostPage";
@@ -56,6 +57,10 @@ function App() {
                   <Route
                     path="/users/:userId"
                     element={<UserPage />}
+                  />
+                  <Route
+                    path="/notifications"
+                    element={<NotificationsList />}
                   />
                 </Routes>
               </ProtectedRoute>
