@@ -10,6 +10,11 @@ export interface ServerNotification {
   user: string;
 }
 
+export interface ClientNotification extends ServerNotification {
+  read: boolean;
+  isNew: boolean;
+}
+
 export const fetchNotifications = createAppAsyncThunk(
   "notifications/fetchNotifications",
   async (_, thunkApi) => {
@@ -27,17 +32,35 @@ export const fetchNotifications = createAppAsyncThunk(
   },
 );
 
-const initialState: ServerNotification[] = [];
+const initialState: ClientNotification[] = [];
 
 const notificationsSlice = createSlice({
   name: "notifications",
   initialState,
-  reducers: {},
+  reducers: {
+    readNotifications(state) {
+      state.forEach((notification) => {
+        notification.read = true;
+      });
+    },
+  },
   extraReducers(builder) {
     builder.addCase(
       fetchNotifications.fulfilled,
       (state, action) => {
-        state.push(...action.payload);
+        const notificationsWithMetadata: ClientNotification[] =
+          action.payload.map((notification) => ({
+            ...notification,
+            read: false,
+            isNew: true,
+          }));
+
+        state.forEach((notification) => {
+          // Any notifications we've read are no longer new
+          notification.isNew = !notification.read;
+        });
+
+        state.push(...notificationsWithMetadata);
         // Sort with newest first
         state.sort((a, b) => b.date.localeCompare(a.date));
       },
@@ -45,7 +68,19 @@ const notificationsSlice = createSlice({
   },
 });
 
+export const { readNotifications } = notificationsSlice.actions;
+
 export default notificationsSlice.reducer;
 
 export const selectAllNotifications = (state: RootState) =>
   state.notifications;
+
+export const selectUnreadNotificationsCount = (
+  state: RootState,
+) => {
+  const allNotifications = selectAllNotifications(state);
+  const unreadNotifications = allNotifications.filter(
+    (notification) => !notification.read,
+  );
+  return unreadNotifications.length;
+};
