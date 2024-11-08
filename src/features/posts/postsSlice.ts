@@ -2,6 +2,7 @@ import { client } from "@/api/client";
 import type { RootState } from "@/app/store";
 import { createAppAsyncThunk } from "@/app/withTypes";
 import {
+  createSelector,
   createSlice,
   nanoid,
   type PayloadAction,
@@ -144,14 +145,10 @@ export const selectPostById = (
   postId: string,
 ) => state.posts.posts.find((post) => post.id === postId);
 
-export const selectPostsByUser = (
-  state: RootState,
-  userId: string,
-) => {
-  const allPosts = selectAllPosts(state);
-  // ❌ This seems suspicious! See more details below
-  return allPosts.filter((post) => post.user === userId);
-};
+export const selectPostsByUser = createSelector(
+  [selectAllPosts, (state: RootState, userId: string) => userId],
+  (posts, userId) => posts.filter((post) => post.user === userId),
+);
 
 export const selectPostsStatus = (state: RootState) =>
   state.posts.status;

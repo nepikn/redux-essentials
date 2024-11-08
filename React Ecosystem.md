@@ -9,6 +9,7 @@
   - [With React](#with-react)
   - [`createSlice(OPTIONS)`](#createsliceoptions)
   - [`createAsyncThunk`](#createasyncthunk)
+  - [`createSelector`](#createselector)
 - [React Router v6.26](#react-router-v626)
   - [Data API](#data-api)
   - [Legacy](#legacy)
@@ -47,6 +48,8 @@ manages global state centrally
 ### Tooling
 
 - `@reduxjs/toolkit`
+  - `immer`
+  - `reselect`
 - `react-redux`
 - [Redux DevTools Extension](https://github.com/reduxjs/redux-devtools/tree/main/extension)
 
@@ -70,14 +73,9 @@ manages global state centrally
   - `ACTION_CREATOR: (...args) => ACTION`
   - `PREPARE_ACTION: (...args) => Omit<ACTION, 'type'>`
 - `THUNK` / `THUNK_ACTION`
-  - `(dispatch, getState) => void`
-  - `THUNK_CREATOR: (...args) => THUNK`
-  - `PAYLOAD_CREATOR`
-    - `async (args, thunkAPI) => Promise<ACTION.payload>`
-  - `THUNK_API`
-    - `dispatch`
-    - `getState`
-    - ...
+  - `THUNK / THUNK_ACTION: (dispatch, getState) => void`
+  - `THUNK_CREATOR: (arg) => THUNK`
+  - see `createAsyncThunk`
 - `CASE_REDUCER`
   - should be pure
   - supports mutation by `immer`
@@ -166,17 +164,28 @@ returns
 const thunkCreator = createAsyncThunk(
   TYPE,
   // PAYLOAD_CREATOR
-  async (args, thunkAPI) => (await fetch(ENDPOINT)).json(),
+  async (arg, thunkAPI) => (await fetch(ENDPOINT)).json(),
   THUNK_OPTIONS,
 );
 
-const thunk = thunkCreator(...args);
+const thunk = thunkCreator(arg?);
 const thunkResult = useDispatch()(thunk);
 ```
 
+- `PAYLOAD_CREATOR`
+  - `async (arg, thunkAPI) => Promise<ACTION.payload>`
+- `thunkAPI`
+  - `dispatch`
+  - `getState`
+  - `extra`<!-- todo: the "extra argument" given to the thunk middleware on setup -->
+  - `requestId` a generated ID to identify each request
+  - `signal` as [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal)
+  - to provide additional `meta` for the action returned by `await thunkResult`
+    - return `rejectWithValue(VALUE, [META])`
+    - return / throw `fulfillWithValue(VALUE, [META])`
 - `THUNK_OPTIONS`
   - `condition`
-    - `(args, { getState, extra }): Promise?<boolean>`
+    - `(arg, { getState, extra }): Promise?<boolean>`
     - return `false` to cancel `thunk`
 - `thunkCreator`
   - `.{pending | fulfilled | rejected}`
@@ -188,6 +197,30 @@ const thunkResult = useDispatch()(thunk);
 | ----------- | ------------------------------------------------ | ---------------------------- |
 | `fulfilled` | returns `{type: 'TYPE/fulfilled', payload, ...}` | returns `payload`            |
 | `rejected`  | returns `{type: 'TYPE/rejected', error, ...}`    | throws `error`               |
+
+### `createSelector`
+
+```javascript
+// slice.ts
+// output selector
+export const selectPostsByUser = createSelector(
+  // input selectors
+  [selectAllPosts, (state: RootState, userId: string) => userId],
+  // one result function
+  (posts, userId) => posts.filter((post) => post.user === userId),
+);
+
+// page.tsx
+const postsByUser = useAppSelector((state) =>
+  selectPostsByUser(state, userId),
+);
+```
+
+- input selector
+  - returns extracted value
+- output selector
+  - changes the return value only when the extracted values have changed
+  - prevents unnecessary re-renders
 
 ## React Router v6.26
 

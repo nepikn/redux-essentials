@@ -1,7 +1,7 @@
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { Spinner } from "@/components/Spinner";
 import { TimeAgo } from "@/components/TimeAgo";
-import { useEffect } from "react";
+import { memo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { PostAuthor } from "./PostAuthor";
 import {
@@ -17,7 +17,9 @@ interface PostExcerptProps {
   post: Post;
 }
 
-function PostExcerpt({ post }: PostExcerptProps) {
+const PostExcerpt = memo(function PostExcerpt({
+  post,
+}: PostExcerptProps) {
   return (
     <article className="post-excerpt" key={post.id}>
       <h3>
@@ -33,7 +35,7 @@ function PostExcerpt({ post }: PostExcerptProps) {
       <ReactionButtons post={post} />
     </article>
   );
-}
+});
 
 export default function PostsList() {
   const dispatch = useAppDispatch();
