@@ -6,20 +6,24 @@ import { Link } from "react-router-dom";
 import { PostAuthor } from "./PostAuthor";
 import {
   fetchPosts,
-  selectAllPosts,
+  selectPostById,
+  selectPostIds,
   selectPostsError,
   selectPostsStatus,
-  type Post,
 } from "./postsSlice";
 import { ReactionButtons } from "./ReactionButtons";
 
 interface PostExcerptProps {
-  post: Post;
+  postId: string;
 }
 
 const PostExcerpt = memo(function PostExcerpt({
-  post,
+  postId,
 }: PostExcerptProps) {
+  const post = useAppSelector((state) =>
+    selectPostById(state, postId),
+  );
+
   return (
     <article className="post-excerpt" key={post.id}>
       <h3>
@@ -39,9 +43,9 @@ const PostExcerpt = memo(function PostExcerpt({
 
 export default function PostsList() {
   const dispatch = useAppDispatch();
-  const posts = useAppSelector(selectAllPosts);
   const postsStatus = useAppSelector(selectPostsStatus);
   const postsError = useAppSelector(selectPostsError);
+  const orderedPostIds = useAppSelector(selectPostIds);
 
   useEffect(() => {
     if (postsStatus == "idle") {
@@ -54,12 +58,8 @@ export default function PostsList() {
   if (postsStatus === "pending") {
     content = <Spinner text="Loading..." />;
   } else if (postsStatus === "succeeded") {
-    const orderedPosts = posts.toSorted((a, b) =>
-      b.date.localeCompare(a.date),
-    );
-
-    content = orderedPosts.map((post) => (
-      <PostExcerpt key={post.id} post={post} />
+    content = orderedPostIds.map((postId) => (
+      <PostExcerpt key={postId} postId={postId} />
     ));
   } else if (postsStatus === "failed") {
     content = <div>{postsError}</div>;
