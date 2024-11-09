@@ -25,7 +25,8 @@ export const AddPostForm = () => {
   ) => {
     e.preventDefault();
 
-    const { elements } = e.currentTarget;
+    const form = e.currentTarget;
+    const { elements } = form;
     const title = elements.postTitle.value;
     const content = elements.postContent.value;
 
@@ -33,7 +34,7 @@ export const AddPostForm = () => {
       setAddRequestStatus("pending");
       await dispatch(addPost({ title, content, user })).unwrap();
 
-      e.currentTarget.reset();
+      form.reset();
     } catch (err) {
       console.error("Failed to save the post: ", err);
     } finally {

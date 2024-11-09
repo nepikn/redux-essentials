@@ -1,4 +1,5 @@
 import { client } from "@/api/client";
+import type { AppStartListening } from "@/app/listenerMiddleware";
 import type { RootState } from "@/app/store";
 import { createAppAsyncThunk } from "@/app/withTypes";
 import {
@@ -53,6 +54,27 @@ export const addPost = createAppAsyncThunk(
     return res.data;
   },
 );
+
+export const addPostsListeners = (
+  startAppListening: AppStartListening,
+) => {
+  startAppListening({
+    actionCreator: addPost.fulfilled,
+    effect: async (action, listenerApi) => {
+      const { toast } = await import("react-tiny-toast");
+
+      const toastId = toast.show("New post added!", {
+        variant: "success",
+        position: "bottom-right",
+        pause: true,
+      });
+
+      await listenerApi.delay(5000);
+
+      toast.remove(toastId);
+    },
+  });
+};
 
 interface PostsState extends EntityState<Post, Post["id"]> {
   status: "idle" | "pending" | "succeeded" | "failed";

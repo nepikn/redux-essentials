@@ -4,6 +4,7 @@ import {
   BrowserRouter as Router,
   Routes,
 } from "react-router-dom";
+import { ToastContainer } from "react-tiny-toast";
 import { useAppSelector } from "./app/hooks";
 import { Navbar } from "./components/Navbar";
 import { selectCurrentUsername } from "./features/auth/authSlice";
@@ -67,6 +68,7 @@ function App() {
             }
           />
         </Routes>
+        <ToastContainer />
       </div>
     </Router>
   );
