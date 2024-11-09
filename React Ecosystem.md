@@ -1,15 +1,14 @@
 # React Ecosystem
 
 - [React](#react)
+  - [Re-render](#re-render)
 - [Redux](#redux)
   - [Tooling](#tooling)
-  - [Data Flow](#data-flow)
-  - [Action / Reducer](#action--reducer)
-  - [`configureStore(OPTIONS)`](#configurestoreoptions)
+  - [Data Flow / Term](#data-flow--term)
+  - [Store](#store)
   - [With React](#with-react)
-  - [`createSlice(OPTIONS)`](#createsliceoptions)
-  - [`createAsyncThunk`](#createasyncthunk)
-  - [`createSelector`](#createselector)
+  - [Action / Reducer / Selector](#action--reducer--selector)
+  - [Asynchronize](#asynchronize)
 - [React Router v6.26](#react-router-v626)
   - [Data API](#data-api)
   - [Legacy](#legacy)
@@ -41,6 +40,17 @@
   3. `reconciliate` caculate the difference between the renders
   4. `commit` apply the difference to the DOM nodes
 
+### Re-render
+
+a component
+
+- re-renders whenever
+  - not passed to its parent by `children`
+  - [its parent re-renders](https://react.dev/reference/react/memo#skipping-re-rendering-when-props-are-unchanged)
+- could be wrapped with `React.memo` if its re-renders
+  - take the same props compared by `Object.is`
+  - cost expensive logic / perceptible lag
+
 ## Redux
 
 manages global state centrally
@@ -53,7 +63,7 @@ manages global state centrally
 - `react-redux`
 - [Redux DevTools Extension](https://github.com/reduxjs/redux-devtools/tree/main/extension)
 
-### Data Flow
+### Data Flow / Term
 
 - initial state
   1. caculated from the root reducer
@@ -61,9 +71,6 @@ manages global state centrally
 - when the store is dispatched an action
   1. reduces the action and the old state to the new state
   2. notifies all subscribed UI
-
-### Action / Reducer
-
 - `ACTION`
   - property
     - `type: 'STATE_NAME/EVENT'`
@@ -86,7 +93,9 @@ manages global state centrally
   - executed between an action dispatched and reduced
   - `redux-thunk` enables `store.dispatch(THUNK)`
 
-### `configureStore(OPTIONS)`
+### Store
+
+#### [`configureStore(OPTIONS)`](https://redux-toolkit.js.org/api/configureStore)
 
 - `reducer: ROOT_REDUCER | ReducersMapObject`
   - `ReducersMapObject`
@@ -104,30 +113,7 @@ returns
   - `(ACTION): ACTION`
   - `(THUNK)` see `createAsyncThunk`
 
-### With React
-
-- `<Provider store={STORE}> />`
-  - avoid direct import to prevnet circular import
-  - allow multiple store instances for testing
-- `useSelector`
-  - triggers a re-render only if
-    - new `SELECTED` `!==` old `SELECTED`
-  - `(SELECTOR)`
-    - `SLICE.selectors.NAME`
-    - `(rootState) => SELECTED`
-  - `.withType<RootState>()`
-- `useDispatch`
-  - `.withType<AppDispatch>()`
-  - see `.dispatch`
-- `createAsyncThunk`
-  - `.withTypes<{state: RootState, dispatch: AppDispatch}>()`
-
-given
-
-- `type RootState = ReturnType<typeof STORE.getState>`
-- `type AppDispatch = typeof STORE.dispatch`
-
-### `createSlice(OPTIONS)`
+#### [`createSlice(OPTIONS)`](https://redux-toolkit.js.org/api/createSlice)
 
 a global state may consist of multiple slices
 
@@ -158,47 +144,32 @@ returns
 - `.actions` action creators created from `OPTIONS.reducers`
 - `.selectors`
 
-### `createAsyncThunk`
+### With React
 
-```javascript
-const thunkCreator = createAsyncThunk(
-  TYPE,
-  // PAYLOAD_CREATOR
-  async (arg, thunkAPI) => (await fetch(ENDPOINT)).json(),
-  THUNK_OPTIONS,
-);
+- `<Provider store={STORE}> />`
+  - avoid direct import to prevnet circular import
+  - allow multiple store instances for testing
+- `useSelector(SELECTOR, equalityFnOrOptions?)`
+  - `SELECTOR`
+    - `SLICE.selectors.NAME`
+    - `(rootState) => SELECTED`
+  - triggers a re-render only if
+    - new `SELECTED` `!==` old `SELECTED`
+  - `.withType<RootState>()`
+- `useDispatch`
+  - `.withType<AppDispatch>()`
+  - see `.dispatch`
 
-const thunk = thunkCreator(arg?);
-const thunkResult = useDispatch()(thunk);
-```
+given
 
-- `PAYLOAD_CREATOR`
-  - `async (arg, thunkAPI) => Promise<ACTION.payload>`
-- `thunkAPI`
-  - `dispatch`
-  - `getState`
-  - `extra`<!-- todo: the "extra argument" given to the thunk middleware on setup -->
-  - `requestId` a generated ID to identify each request
-  - `signal` as [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal)
-  - to provide additional `meta` for the action returned by `await thunkResult`
-    - return `rejectWithValue(VALUE, [META])`
-    - return / throw `fulfillWithValue(VALUE, [META])`
-- `THUNK_OPTIONS`
-  - `condition`
-    - `(arg, { getState, extra }): Promise?<boolean>`
-    - return `false` to cancel `thunk`
-- `thunkCreator`
-  - `.{pending | fulfilled | rejected}`
-    - returns `ACTION_CREATOR`
-    - for `extraReducers`
-- `thunkResult`
+- `type RootState = ReturnType<typeof STORE.getState>`
+- `type AppDispatch = typeof STORE.dispatch`
 
-|             | `await thunkResult`                              | `await thunkResult.unwrap()` |
-| ----------- | ------------------------------------------------ | ---------------------------- |
-| `fulfilled` | returns `{type: 'TYPE/fulfilled', payload, ...}` | returns `payload`            |
-| `rejected`  | returns `{type: 'TYPE/rejected', error, ...}`    | throws `error`               |
+### Action / Reducer / Selector
 
-### `createSelector`
+#### [`createSelector`](https://reselect.js.org/api/createSelector)
+
+for creating memoized selectors
 
 ```javascript
 // slice.ts
@@ -221,6 +192,182 @@ const postsByUser = useAppSelector((state) =>
 - output selector
   - changes the return value only when the extracted values have changed
   - prevents unnecessary re-renders
+
+#### [`createEntityAdapter`](https://redux-toolkit.js.org/api/createEntityAdapter)
+
+for
+
+- normalizing entities
+  - no duplicated entity
+  - entities kept in a lookup table
+- generated
+  - CRUD reducers
+  - memoized selectors
+
+```typescript
+// slice.ts
+const adapter = createEntityAdapter<Entity>({
+  selectId ?? (entity) => entity.id,
+  sortComparer ?? false,
+});
+
+const initialState: State = adapter.getInitialState({
+  // props additional to
+  // ids: []
+  // entities: {}
+}, [
+  // initial entities
+]);
+
+const slice = createSlice({
+  initialState,
+  selectors: { ...adapter.getSelectors() },
+  extraReducers(builder) {
+    builder.addCase(THUNK_CREATOR.fulfilled, adapter.addOne);
+  },
+});
+
+export const { selectAll } = postsSlice.selectors;
+// or
+export const {
+  selectAll,
+} = postsAdapter.getSelectors((state: RootState) => state.posts);
+```
+
+- `adapter`
+  - `.getInitialState()`
+  - `.getSelectors()` created with `createSelector`
+  - `.addOne()` [CRUD reducer](https://redux-toolkit.js.org/api/createEntityAdapter#crud-functions)
+    - `State`
+    - `Entity | PayloadAction<Entity>`
+
+|        | One | Many | All |
+| ------ | --- | ---- | --- |
+| add    | ✓   | ✓    |     |
+| set    | ✓   | ✓    | ✓   |
+| remove | ✓   | ✓    | ✓   |
+| update | ✓   | ✓    |     |
+| upsert | ✓   | ✓    |     |
+
+### Asynchronize
+
+#### [`createAsyncThunk`](https://redux-toolkit.js.org/api/createAsyncThunk)
+
+for dispatching actions with asynchronous logic
+
+```javascript
+export const createAppAsyncThunk = createAsyncThunk.withTypes<{
+  state: RootState;
+  dispatch: AppDispatch;
+}>();
+
+// slice.ts
+const thunkCreator = createAppAsyncThunk(
+  // TYPE
+  'STATE/EVENT',
+  // PAYLOAD_CREATOR
+  async (arg, thunkAPI) => {
+    // arg == ID;
+    return (await fetch(arg)).json();
+  },
+  THUNK_OPTIONS,
+);
+
+// page.tsx
+const thunk = thunkCreator(ID);
+const thunkResult = useDispatch()(thunk);
+```
+
+- `PAYLOAD_CREATOR`
+  - `async (arg, thunkAPI) => Promise<ACTION.payload>`
+- `thunkAPI`
+  - `dispatch`
+  - `getState`
+  - `extra`<!-- todo: the "extra argument" given to the thunk middleware on setup -->
+  - `requestId` a generated ID to identify each request
+  - `signal` as [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal)
+  - to provide additional `meta` for the action returned by `await thunkResult`
+    - return `rejectWithValue(VALUE, [META])`
+    - return / throw `fulfillWithValue(VALUE, [META])`
+- `THUNK_OPTIONS`
+  - `condition`
+    - `(arg, { getState, extra }): Promise?<boolean>`
+    - return `false` to cancel `thunk`
+  - ...
+- `thunkCreator`
+  - `.{pending | fulfilled | rejected}`
+    - returns `ACTION_CREATOR`
+    - for `extraReducers`
+- `thunkResult`
+
+|             | `await thunkResult`                              | `await thunkResult.unwrap()` |
+| ----------- | ------------------------------------------------ | ---------------------------- |
+| `fulfilled` | returns `{type: 'TYPE/fulfilled', payload, ...}` | returns `payload`            |
+| `rejected`  | returns `{type: 'TYPE/rejected', error, ...}`    | throws `error`               |
+
+#### [`createListenerMiddleware`](https://redux-toolkit.js.org/api/createListenerMiddleware)
+
+for responding actions with asynchronous logic
+
+```typescript
+// listenerMiddleware.ts
+export const listenerMiddleware = createListenerMiddleware({
+  // will be injected into `ListenerApi.extra`
+  extra,
+  onError,
+});
+
+export const startAppListening =
+  listenerMiddleware.startListening.withTypes<
+    RootState,
+    AppDispatch
+  >();
+export type AppStartListening = typeof startAppListening;
+
+const unsubscribe = addSliceListeners(startAppListening);
+// or
+const unsubscribe = store.dispatch(
+  addListener({
+    // TYPE
+    actionCreator: THUNK_CREATOR.fulfilled,
+    // (Action, ListenerApi) => Promise?<void>
+    effect: async (action, listenerApi) => {},
+  }),
+);
+
+unsubscribe({ cancelActive: true });
+
+// store.ts
+const store = configureStore({
+  middleware: (getDefault) =>
+    getDefault().prepend(listenerMiddleware.middleware),
+});
+
+// slice.ts
+export const addSliceListeners = (
+  startAppListening: AppStartListening,
+) => {
+  startAppListening({
+    actionCreator,
+    effect,
+  });
+};
+```
+
+- `TYPE` exactly one of
+  - `type: 'STATE_NAME/EVENT'`
+  - `actionCreator`
+  - [`matcher`](https://redux-toolkit.js.org/api/matching-utilities)
+  - `predicate: (action, state, prevState) => boolean`
+- `listenerMiddleware`
+  - `.startListening()`
+  - `.stopListening()` similar to `unsubscribe`
+  - `.clearListeners()`
+- `@reduxjs/toolkit`
+  - `addListener()`
+  - `removeListener()`
+  - `clearAllListeners()`
+- [`ListenerApi`](https://redux-toolkit.js.org/api/createListenerMiddleware#listener-api)
 
 ## React Router v6.26
 
