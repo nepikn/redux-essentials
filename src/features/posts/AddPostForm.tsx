@@ -1,7 +1,7 @@
-import { useAppDispatch, useAppSelector } from "@/app/hooks";
-import React, { useState } from "react";
+import { useAppSelector } from "@/app/hooks";
+import React from "react";
+import { useAddNewPostMutation } from "../api/apiSlice";
 import { selectCurrentUsername } from "../auth/authSlice";
-import { addPost } from "./postsSlice";
 
 // TS types for the input fields
 // See: https://epicreact.dev/how-to-type-a-react-form-on-submit-handler/
@@ -14,11 +14,8 @@ interface AddPostFormElements extends HTMLFormElement {
 }
 
 export const AddPostForm = () => {
-  const dispatch = useAppDispatch();
   const user = useAppSelector(selectCurrentUsername)!;
-  const [addRequestStatus, setAddRequestStatus] = useState<
-    "idle" | "pending"
-  >("idle");
+  const [addNewPost, { isLoading }] = useAddNewPostMutation();
 
   const handleSubmit = async (
     e: React.FormEvent<AddPostFormElements>,
@@ -31,14 +28,11 @@ export const AddPostForm = () => {
     const content = elements.postContent.value;
 
     try {
-      setAddRequestStatus("pending");
-      await dispatch(addPost({ title, content, user })).unwrap();
+      await addNewPost({ title, content, user }).unwrap();
 
       form.reset();
     } catch (err) {
       console.error("Failed to save the post: ", err);
-    } finally {
-      setAddRequestStatus("idle");
     }
   };
 
@@ -60,9 +54,7 @@ export const AddPostForm = () => {
           defaultValue="c"
           required
         />
-        <button disabled={addRequestStatus != "idle"}>
-          Save Post
-        </button>
+        <button disabled={isLoading}>Save Post</button>
       </form>
     </section>
   );

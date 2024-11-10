@@ -31,7 +31,7 @@ export interface Post {
 }
 
 type PostUpdate = Pick<Post, "id" | "title" | "content">;
-type PostAdd = Pick<Post, "title" | "content" | "user">;
+export type PostAdd = Pick<Post, "title" | "content" | "user">;
 
 export const fetchPosts = createAppAsyncThunk(
   "posts/fetch",

@@ -1,3 +1,4 @@
+import { apiSlice } from "@/features/api/apiSlice";
 import auth from "@/features/auth/authSlice";
 import notifications from "@/features/notifications/notificationsSlice";
 import posts from "@/features/posts/postsSlice";
@@ -6,9 +7,17 @@ import { configureStore } from "@reduxjs/toolkit";
 import { listenerMiddleware } from "./listenerMiddleware";
 
 export const store = configureStore({
-  reducer: { posts, users, auth, notifications },
+  reducer: {
+    posts,
+    users,
+    auth,
+    notifications,
+    [apiSlice.reducerPath]: apiSlice.reducer,
+  },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().prepend(listenerMiddleware.middleware),
+    getDefaultMiddleware()
+      .prepend(listenerMiddleware.middleware)
+      .concat(apiSlice.middleware),
 });
 
 export type AppDispatch = typeof store.dispatch;
