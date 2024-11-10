@@ -6,7 +6,11 @@ import {
 
 // Use the `Post` type we've already defined in `postsSlice`,
 // and then re-export it for ease of use
-import type { Post, PostAdd } from "@/features/posts/postsSlice";
+import type {
+  Post,
+  PostAdd,
+  PostUpdate,
+} from "@/features/posts/postsSlice";
 export type { Post };
 
 // Define our single API slice object
@@ -23,10 +27,20 @@ export const apiSlice = createApi({
     getPosts: builder.query<Post[], void>({
       // The URL for the request is '/fakeApi/posts'
       query: () => "/posts",
-      providesTags: ["Post"],
+      providesTags: (result = [], error, arg, meta) => [
+        "Post",
+        ...result.map(
+          ({ id }) => ({ type: "Post", id }) as const,
+        ),
+      ],
+      // default
+      keepUnusedDataFor: 60,
     }),
     getPost: builder.query<Post, string>({
       query: (arg) => `/posts/${arg}`,
+      providesTags: (result, error, arg) => [
+        { type: "Post", id: arg },
+      ],
     }),
     addNewPost: builder.mutation<Post, PostAdd>({
       query: (initialPost) => ({
@@ -36,6 +50,16 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ["Post"],
     }),
+    editPost: builder.mutation<Post, PostUpdate>({
+      query: (post) => ({
+        url: `/posts/${post.id}`,
+        method: "PATCH",
+        body: post,
+      }),
+      invalidatesTags(result, error, arg, meta) {
+        return [{ type: "Post", id: arg.id }];
+      },
+    }),
   }),
 });
 
@@ -44,4 +68,5 @@ export const {
   useGetPostsQuery,
   useGetPostQuery,
   useAddNewPostMutation,
+  useEditPostMutation,
 } = apiSlice;

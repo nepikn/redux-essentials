@@ -9,6 +9,7 @@ import {
   type EntityState,
   type PayloadAction,
 } from "@reduxjs/toolkit";
+import { apiSlice } from "../api/apiSlice";
 import { logout } from "../auth/authSlice";
 
 export interface Reactions {
@@ -30,7 +31,7 @@ export interface Post {
   reactions: Reactions;
 }
 
-type PostUpdate = Pick<Post, "id" | "title" | "content">;
+export type PostUpdate = Pick<Post, "id" | "title" | "content">;
 export type PostAdd = Pick<Post, "title" | "content" | "user">;
 
 export const fetchPosts = createAppAsyncThunk(
@@ -59,7 +60,7 @@ export const addPostsListeners = (
   startAppListening: AppStartListening,
 ) => {
   startAppListening({
-    actionCreator: addPost.fulfilled,
+    matcher: apiSlice.endpoints.addNewPost.matchFulfilled,
     effect: async (action, listenerApi) => {
       const { toast } = await import("react-tiny-toast");
 

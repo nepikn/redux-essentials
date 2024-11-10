@@ -1,49 +1,51 @@
-import { client } from "@/api/client";
 import type { RootState } from "@/app/store";
-import { createAppAsyncThunk } from "@/app/withTypes";
-import {
-  createEntityAdapter,
-  createSlice,
-} from "@reduxjs/toolkit";
+import { createSelector } from "@reduxjs/toolkit";
+import { apiSlice } from "../api/apiSlice";
 import { selectCurrentUsername } from "../auth/authSlice";
 
-interface User {
+export interface User {
   id: string;
   name: string;
 }
 
-export const fetchUsers = createAppAsyncThunk(
-  "users/fetchUsers",
-  async () => {
-    const response = await client.get<User[]>("/fakeApi/users");
-    return response.data;
-  },
-);
+// const usersAdapter = createEntityAdapter<User>();
 
-const usersAdapter = createEntityAdapter<User>();
+// const initialState = usersAdapter.getInitialState();
 
-const initialState = usersAdapter.getInitialState();
-
-const usersSlice = createSlice({
-  name: "users",
-  initialState,
-  reducers: {},
-  extraReducers(builder) {
-    builder.addCase(fetchUsers.fulfilled, usersAdapter.setAll);
-  },
+export const apiSliceWithUsers = apiSlice.injectEndpoints({
+  endpoints: (builder) => ({
+    getUsers: builder.query<User[], void>({
+      query: () => ({ url: "/users" }),
+    }),
+  }),
 });
 
-export default usersSlice.reducer;
+export const { useGetUsersQuery } = apiSliceWithUsers;
 
-export const {
-  selectAll: selectAllUsers,
-  selectById: selectUserById,
-} = usersAdapter.getSelectors((state: RootState) => state.users);
+const emptyUsers: User[] = [];
+
+export const selectUsersResult =
+  apiSliceWithUsers.endpoints.getUsers.select();
+
+// export const {
+//   selectAll: selectAllUsers,
+//   selectById: selectUserById,
+// } = usersAdapter.getSelectors((state: RootState) => state.users);
+
+export const selectAllUsers = createSelector(
+  selectUsersResult,
+  (result) => result?.data ?? emptyUsers,
+);
+
+export const selectUserById = createSelector(
+  selectAllUsers,
+  (state: RootState, userId: string) => userId,
+  (users, userId) => users.find((user) => user.id == userId),
+);
 
 export const selectCurrentUser = (state: RootState) => {
   const currentUsername = selectCurrentUsername(state);
-  if (!currentUsername) {
-    return;
+  if (currentUsername) {
+    return selectUserById(state, currentUsername);
   }
-  return selectUserById(state, currentUsername);
 };

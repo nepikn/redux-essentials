@@ -1,8 +1,10 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { useAppDispatch, useAppSelector } from "@/app/hooks";
-import { selectPostById, updatePost } from "./postsSlice";
+import {
+  useEditPostMutation,
+  useGetPostQuery,
+} from "../api/apiSlice";
 
 interface EditPostFormFields extends HTMLFormControlsCollection {
   postTitle: HTMLInputElement;
@@ -14,13 +16,11 @@ interface EditPostFormElements extends HTMLFormElement {
 
 export const EditPostForm = () => {
   const { postId } = useParams();
-
-  const post = useAppSelector((state) =>
-    selectPostById(state, postId),
-  );
-
-  const dispatch = useAppDispatch();
   const navigate = useNavigate();
+
+  const { data: post } = useGetPostQuery(postId!);
+
+  const [editPost, { isLoading }] = useEditPostMutation();
 
   if (!post) {
     return (
@@ -41,7 +41,7 @@ export const EditPostForm = () => {
     const content = elements.postContent.value;
 
     if (title && content) {
-      dispatch(updatePost({ id: post.id, title, content }));
+      editPost({ id: post.id, title, content });
       navigate(`/posts/${postId}`);
     }
   };
