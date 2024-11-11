@@ -10,6 +10,7 @@ import type {
   Post,
   PostAdd,
   PostUpdate,
+  ReactionName,
 } from "@/features/posts/postsSlice";
 export type { Post };
 
@@ -60,6 +61,52 @@ export const apiSlice = createApi({
         return [{ type: "Post", id: arg.id }];
       },
     }),
+    addReaction: builder.mutation<
+      Post,
+      { postId: string; reaction: ReactionName }
+    >({
+      query: ({ postId, reaction }) => ({
+        url: `/posts/${postId}/reactions`,
+        method: "POST",
+        body: { reaction },
+      }),
+      async onQueryStarted(
+        { postId, reaction },
+        { dispatch, queryFulfilled },
+      ) {
+        const getPostsPatchResult = dispatch(
+          apiSlice.util.updateQueryData(
+            "getPosts",
+            undefined,
+            (posts) => {
+              const post = posts.find(
+                (post) => post.id == postId,
+              );
+              if (post) {
+                post.reactions[reaction]++;
+              }
+            },
+          ),
+        );
+
+        const getPostPatchResult = dispatch(
+          apiSlice.util.updateQueryData(
+            "getPost",
+            postId,
+            (draft) => {
+              draft.reactions[reaction]++;
+            },
+          ),
+        );
+
+        try {
+          await queryFulfilled;
+        } catch {
+          getPostsPatchResult.undo();
+          getPostPatchResult.undo();
+        }
+      },
+    }),
   }),
 });
 
@@ -69,4 +116,5 @@ export const {
   useGetPostQuery,
   useAddNewPostMutation,
   useEditPostMutation,
+  useAddReactionMutation,
 } = apiSlice;
