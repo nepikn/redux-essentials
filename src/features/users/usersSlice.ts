@@ -1,5 +1,9 @@
 import type { RootState } from "@/app/store";
-import { createSelector } from "@reduxjs/toolkit";
+import {
+  createEntityAdapter,
+  createSelector,
+  type EntityState,
+} from "@reduxjs/toolkit";
 import { apiSlice } from "../api/apiSlice";
 import { selectCurrentUsername } from "../auth/authSlice";
 
@@ -8,40 +12,38 @@ export interface User {
   name: string;
 }
 
-// const usersAdapter = createEntityAdapter<User>();
+const usersAdapter = createEntityAdapter<User>();
 
-// const initialState = usersAdapter.getInitialState();
+const initialState = usersAdapter.getInitialState();
 
 export const apiSliceWithUsers = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    getUsers: builder.query<User[], void>({
+    getUsers: builder.query<EntityState<User, string>, void>({
       query: () => ({ url: "/users" }),
+      transformResponse(res: User[]) {
+        return usersAdapter.setAll(initialState, res);
+      },
     }),
   }),
 });
 
 export const { useGetUsersQuery } = apiSliceWithUsers;
 
-const emptyUsers: User[] = [];
-
-export const selectUsersResult =
+const selectUsersResult =
   apiSliceWithUsers.endpoints.getUsers.select();
 
-// export const {
-//   selectAll: selectAllUsers,
-//   selectById: selectUserById,
-// } = usersAdapter.getSelectors((state: RootState) => state.users);
-
-export const selectAllUsers = createSelector(
+const selectUsersData = createSelector(
   selectUsersResult,
-  (result) => result?.data ?? emptyUsers,
+  // Fall back to the empty entity state if no response yet.
+  (result) => {
+    return result.data ?? initialState;
+  },
 );
 
-export const selectUserById = createSelector(
-  selectAllUsers,
-  (state: RootState, userId: string) => userId,
-  (users, userId) => users.find((user) => user.id == userId),
-);
+export const {
+  selectAll: selectAllUsers,
+  selectById: selectUserById,
+} = usersAdapter.getSelectors(selectUsersData);
 
 export const selectCurrentUser = (state: RootState) => {
   const currentUsername = selectCurrentUsername(state);
