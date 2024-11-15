@@ -41,19 +41,9 @@ export const AddPostForm = () => {
       <h2>Add a New Post</h2>
       <form onSubmit={handleSubmit}>
         <label htmlFor="postTitle">Post Title:</label>
-        <input
-          type="text"
-          id="postTitle"
-          defaultValue="t"
-          required
-        />
+        <input type="text" id="postTitle" required />
         <label htmlFor="postContent">Content:</label>
-        <textarea
-          id="postContent"
-          name="postContent"
-          defaultValue="c"
-          required
-        />
+        <textarea id="postContent" name="postContent" required />
         <button disabled={isLoading}>Save Post</button>
       </form>
     </section>

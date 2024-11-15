@@ -1,13 +1,15 @@
 import { apiSlice } from "@/features/api/apiSlice";
 import auth from "@/features/auth/authSlice";
 import notifications from "@/features/notifications/notificationsSlice";
-import posts from "@/features/posts/postsSlice";
-import { configureStore } from "@reduxjs/toolkit";
+import {
+  configureStore,
+  type ThunkAction,
+  type UnknownAction,
+} from "@reduxjs/toolkit";
 import { listenerMiddleware } from "./listenerMiddleware";
 
 export const store = configureStore({
   reducer: {
-    posts,
     auth,
     notifications,
     [apiSlice.reducerPath]: apiSlice.reducer,
@@ -20,3 +22,9 @@ export const store = configureStore({
 
 export type AppDispatch = typeof store.dispatch;
 export type RootState = ReturnType<typeof store.getState>;
+export type AppThunk<ReturnType = void> = ThunkAction<
+  ReturnType,
+  RootState,
+  unknown,
+  UnknownAction
+>;
