@@ -9,6 +9,7 @@
   - [With React](#with-react)
   - [Action / Reducer / Selector](#action--reducer--selector)
   - [Asynchronize](#asynchronize)
+  - [`@reduxjs/toolkit/query`](#reduxjstoolkitquery)
 - [React Router v6.26](#react-router-v626)
   - [Data API](#data-api)
   - [Legacy](#legacy)
@@ -57,9 +58,10 @@ manages global state centrally
 
 ### Tooling
 
-- `@reduxjs/toolkit`
+- `@reduxjs/toolkit` abstract `redux`
   - `immer`
   - `reselect`
+- `@reduxjs/toolkit/query` abstract data fetching / caching
 - `react-redux`
 - [Redux DevTools Extension](https://github.com/reduxjs/redux-devtools/tree/main/extension)
 
@@ -71,19 +73,21 @@ manages global state centrally
 - when the store is dispatched an action
   1. reduces the action and the old state to the new state
   2. notifies all subscribed UI
-- `ACTION`
+- `Action`
   - property
     - `type: 'STATE_NAME/EVENT'`
     - `payload?: any | Error`
     - `error?: boolean`
     - `meta?`
-  - `ACTION_CREATOR: (...args) => ACTION`
-  - `PREPARE_ACTION: (...args) => Omit<ACTION, 'type'>`
-- `THUNK` / `THUNK_ACTION`
-  - `THUNK / THUNK_ACTION: (dispatch, getState) => void`
-  - `THUNK_CREATOR: (arg) => THUNK`
+  - `ActionCreator: (...args) => ACTION`
+  - `PrepareAction: (...args) => Omit<ACTION, 'type'>`
+  - [`Matcher`](https://redux-toolkit.js.org/api/matching-utilities)
+    - `Slice.extraReducers.addMatcher`
+    - `ListenerMiddleware.startListening.matcher`
+- `Thunk` / `ThunkAction: (dispatch, getState) => void`
+  - `ThunkCreator: (arg) => Thunk`
   - see `createAsyncThunk`
-- `CASE_REDUCER`
+- `CaseReducer`
   - should be pure
   - supports mutation by `immer`
     - `(state, action: PayloadAction<ACTION.payload>) => void`
@@ -95,9 +99,11 @@ manages global state centrally
 
 ### Store
 
-#### [`configureStore(OPTIONS)`](https://redux-toolkit.js.org/api/configureStore)
+#### [`configureStore`](https://redux-toolkit.js.org/api/configureStore)
 
-- `reducer: ROOT_REDUCER | ReducersMapObject`
+`({})`
+
+- `reducer: RootReducer | ReducersMapObject`
   - `ReducersMapObject`
     - `{ STATE_NAME: SLICE_REDUCER }`
     - passed to `combineReducers`
@@ -106,39 +112,41 @@ manages global state centrally
 - `preloadedState?`
 - `enhancers?`
 
-returns
+`store`
 
 - `.getState()`
 - `.dispatch`
-  - `(ACTION): ACTION`
-  - `(THUNK)` see `createAsyncThunk`
+  - `: (ACTION) => ACTION`
+  - `: (Thunk) => ThunkResult` see `createAsyncThunk`
 
-#### [`createSlice(OPTIONS)`](https://redux-toolkit.js.org/api/createSlice)
+#### [`createSlice`](https://redux-toolkit.js.org/api/createSlice)
 
 a global state may consist of multiple slices
+
+`({})`
 
 - `name: STATE_NAME`
 - `initialState`
 - `reducers`
-  - `{EVENT: CASE_REDUCER}`
+  - `{EVENT: CaseReducer}`
   - `{EVENT: {}}`
-    - `reducer: CASE_REDUCER`
-    - `prepare: PREPARE_ACTION`
+    - `reducer: CaseReducer`
+    - `prepare: PrepareAction`
   - `(creators) => ({EVENT: creators.METHOD()})`
-    - `.reducer(CASE_REDUCER)`
-    - `.preparedReducer(PREPARE_ACTION, CASE_REDUCER)`
+    - `.reducer(CaseReducer)`
+    - `.preparedReducer(PrepareAction, CaseReducer)`
     - `.asyncThunk(PAYLOAD_CREATOR, {})`
-      - `options: THUNK_OPTIONS`
-      - `pending | fulfilled | rejected: CASE_REDUCER`
-  - `extraReducers: (builder) => builder.METHOD()`
-    - handle actions created beyond this slice
-    - `.addCase(ACTION.type | ACTION_CREATOR, CASE_REDUCER)`
-    - `.addMatcher`
-    - `.addDefaultCase`
+      - `options: ThunkOptions` see `createAsyncThunk`
+      - `pending | fulfilled | rejected: CaseReducer`
+- `extraReducers: (builder) => builder.METHOD()`
+  - `.addCase(Action.type | ActionCreator, CaseReducer)`
+  - `.addMatcher`
+  - `.addDefaultCase`
+  - handle actions created beyond this slice
 - `selectors`
-  - `{SELETOR_NAME: (slicetState) => SELECTED}`
+  - `{ NAME: (slicetState) => SELECTED }`
 
-returns
+`slice`
 
 - `.reducer` a slice reducer for `ReducersMapObject`
 - `.actions` action creators created from `OPTIONS.reducers`
@@ -197,10 +205,10 @@ const postsByUser = useAppSelector((state) =>
 
 for
 
-- normalizing entities
-  - no duplicated entity
-  - entities kept in a lookup table
-- generated
+- normalizing data as entities which are
+  - deduplicated
+  - kept in a lookup table
+- auto-generated
   - CRUD reducers
   - memoized selectors
 
@@ -289,14 +297,14 @@ const thunkResult = useDispatch()(thunk);
   - to provide additional `meta` for the action returned by `await thunkResult`
     - return `rejectWithValue(VALUE, [META])`
     - return / throw `fulfillWithValue(VALUE, [META])`
-- `THUNK_OPTIONS`
+- `ThunkOptions`
   - `condition`
     - `(arg, { getState, extra }): Promise?<boolean>`
     - return `false` to cancel `thunk`
   - ...
 - `thunkCreator`
   - `.{pending | fulfilled | rejected}`
-    - returns `ACTION_CREATOR`
+    - returns `ActionCreator`
     - for `extraReducers`
 - `thunkResult`
 
@@ -307,7 +315,7 @@ const thunkResult = useDispatch()(thunk);
 
 #### [`createListenerMiddleware`](https://redux-toolkit.js.org/api/createListenerMiddleware)
 
-for responding actions with asynchronous logic
+for handling actions with asynchronous logic
 
 ```typescript
 // listenerMiddleware.ts
@@ -357,7 +365,7 @@ export const addSliceListeners = (
 - `TYPE` exactly one of
   - `type: 'STATE_NAME/EVENT'`
   - `actionCreator`
-  - [`matcher`](https://redux-toolkit.js.org/api/matching-utilities)
+  - `matcher`
   - `predicate: (action, state, prevState) => boolean`
 - `listenerMiddleware`
   - `.startListening()`
@@ -368,6 +376,163 @@ export const addSliceListeners = (
   - `removeListener()`
   - `clearAllListeners()`
 - [`ListenerApi`](https://redux-toolkit.js.org/api/createListenerMiddleware#listener-api)
+
+### `@reduxjs/toolkit/query`
+
+for fetching / caching management
+
+- fetching results are stored as cache entries
+  - entry / cache key
+    - `'ENDPOINT(ARGUMENTS)'`
+    - changed by `serializeQueryArgs`
+- a result is stored if the key is unique
+  - even if the result is duplicated
+  - so the cache itself is not normalized / deduplicated
+- a cache entry is removed for no subscription for `60` seconds
+  - changed by `keepUnusedDataFor`
+  - subscribe / unsubscribe
+    - components mounted / unmounted
+
+#### `createApi`
+
+```js
+// apiSlice.ts
+export const apiSlice = createApi({
+  baseQuery: fetchBaseQuery({ baseUrl: "/api" }),
+  tagTypes: ["Post"],
+  endpoints: (builder) => ({
+    getPost: builder.query<Post, string>({
+      query: (arg) => `/posts/${arg}`,
+      providesTags: (result, error, arg) => [
+        { type: "Post", id: arg },
+      ],
+    }),
+  }),
+});
+
+export const {
+  useGetPostQuery,
+} = apiSlice;
+
+// store.ts
+export const store = configureStore({
+  reducer: {
+    [apiSlice.reducerPath]: apiSlice.reducer,
+  },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware()
+      .concat(apiSlice.middleware),
+});
+
+// Component.tsx
+export const Component = () => {
+  const { data: post } = useGetPostQuery(postId);
+}
+```
+
+`({})`
+
+- `reducerPath` default to `"api"`
+- `baseQuery`
+  - `fetchBaseQuery({})`
+    - `baseUrl`
+    - [...](https://redux-toolkit.js.org/rtk-query/api/fetchBaseQuery#parameters)
+
+```javascript
+{
+  endpoints: (builder) => ({
+    ENDPOINT: builder.METHOD<DataType, ArgType>({
+      // ...
+    }),
+  });
+}
+```
+
+- `endpoints` where `METHOD: query | mutatation`
+  - `query: (arg?) => 'URL' | RequestInit`
+  - `{provides | invalidates}Tags`
+  - `transformResponse(data)`
+  - `onQueryStarted(arg?, api)`
+    - for optimistic updates
+  - `onCacheEntryAdded(arg?, api)`
+    - for creating / managing WebSocket connections
+  - `serializeQueryArgs`
+  - [...](https://redux-toolkit.js.org/rtk-query/api/createApi#anatomy-of-an-endpoint)
+- `keepUnusedDataFor` default to `60` (seconds)
+- [...](https://redux-toolkit.js.org/rtk-query/api/createApi#parameters)
+
+`apiSlice`
+
+- [`.reducer`](https://redux-toolkit.js.org/rtk-query/api/created-api/redux-integration)
+- `.reducerPath`
+- `.middleware`
+
+```javascript
+useEffect(() => {
+  const result = dispatch(ENDPOINT.initiate(ARG));
+
+  return result.unsubscribe;
+}, [ARG]);
+```
+
+- [`.endpoints`](https://redux-toolkit.js.org/rtk-query/api/created-api/endpoints)
+  - `.ENDPOINT.initiate: (Arg?) => Thunk`
+    - auto-dispatched by hooks
+  - `.ENDPOINT.select: (Arg?) => ((RootState) => Result)`
+    - each call returns a new memoized selector
+    - may need to memoize the returned selector
+  - `.ENDPOINT.match{Pending | Fulfilled | Rejected}` for `Matcher`
+- [`.injectEndpoints`](https://redux-toolkit.js.org/rtk-query/api/created-api/code-splitting)
+- `.enhanceEndpoints`
+- [`.util`](https://redux-toolkit.js.org/rtk-query/api/created-api/api-slice-utils)
+  - `updateQueryData` for optimistic updates
+- `.internalActions`
+- [`.use[Lazy]{ENDPOINT}{Query}: (Arg?, Options?) => Result`](https://redux-toolkit.js.org/rtk-query/api/created-api/hooks)
+- `.use{ENDPOINT}{Mutation}: (Options?) => [(Arg?) => Promise, Result]`
+- `.usePrefetch`
+
+`Result` for `Query`
+
+- `.data`
+  - from the latest successful query
+  - changes only if a new successful query has completed
+- `.currentData`
+  - switches to `undefined` if a new fetching starts
+- `.error`
+- `.isLoading` true if and only if the first query has no data
+- `.isFetching` true if the current query has no data
+- `.is{Uninitialized | Success | Error}`
+- `.refetch()`
+- [...](https://redux-toolkit.js.org/rtk-query/api/created-api/hooks#signature)
+
+`Result` for `Mutation`
+
+- `.data`
+- `.error`
+- `.is{Uninitialized | Loading | Success | Error}`
+- `.reset()`
+- [...](https://redux-toolkit.js.org/rtk-query/api/created-api/hooks#signature-1)
+
+#### Cache tag
+
+- syntax
+  - general
+    - `'TYPE'`
+    - `{ type: 'TYPE' }`
+  - specific
+    - `{ type: 'TYPE', id: 'ENTITY_ID_OR_SUBSET_NAME' }`
+    - `'TYPE' as const` for `providesTags`
+- invalidation
+  - `'Post'` invalidates
+    - `'Post'`
+    - `{ type: 'Post', id }`
+  - `{ type: 'Post', id: 1 }` invalidates
+    - `{ type: 'Post', id: 1 }`
+    - `['User', { type: 'Post', id: 1 }]`
+- a invalidated endpoint will
+  - be auto-refetched if subscribed
+  - has its cache entry removed if not subscribed
+- [utils for common providing / invalidating](https://gist.github.com/Shrugsy/6b6af02aef1f783df9d636526c1e05fa)
 
 ## React Router v6.26
 
