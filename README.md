@@ -1,37 +1,123 @@
-# Redux Essentials Tutorial Example
+# Redux Essentials Example
 
-This project contains the setup and code from the "Redux Essentials" tutorial example app in the Redux docs ( https://redux.js.org/tutorials/essentials/part-3-data-flow ).
+隨 [Redux Essentials] 完成的社群平台
 
-The `master` branch has a single commit that already has the initial project configuration in place. You can use this as the starting point to follow along with the instructions from the tutorial.
+[Redux Essentials]: https://redux.js.org/tutorials/essentials/part-1-overview-concepts
 
-The `tutorial-steps-ts` branch has the actual code commits from the tutorial. You can look at these to see how the official tutorial actually implements each piece of functionality along the way.
+## 預期功能
 
-This project was bootstrapped with [Vite](https://vitejs.dev/), and is based on the [official Redux Toolkit + Vite template](https://github.com/reduxjs/redux-templates/tree/master/packages/vite-template-redux).
+用戶登入後可以
 
-## Package Managers
+- 瀏覽貼文
+- 瀏覽個別用戶發布的貼文
+- 新增貼文
+- 修改貼文
+- 對貼文表示「👍」等等
+- 瀏覽通知
+- 手動更新通知
 
-This project is currently set up to use [Yarn 4](https://yarnpkg.com/getting-started/usage) as the package manager.
+## 展示
 
-If you prefer to use another package manager, such as NPM, PNPM, or Bun, delete the `"packageManager"` section from `package.json` and the `.yarnrc.yml` and `yarn.lock` files, then install dependencies with your preferred package manager.
+[部署於 codesandbox.io]()
 
-## Available Scripts
+| 首頁    | 貼文    | 通知      |
+| ------- | ------- | --------- |
+| ![root] | ![post] | ![notifs] |
 
-In the project directory, you can run:
+[root]: https://github.com/nepikn/redux-essentials/blob/main/screenshots/root.jpeg
+[post]: https://github.com/nepikn/redux-essentials/blob/main/screenshots/post.jpeg
+[notifs]: https://github.com/nepikn/redux-essentials/blob/main/screenshots/notifs.jpeg
 
-### `yarn dev`
+## 主要技術
 
-Runs the app in the development mode.<br />
-Open [http://localhost:4173](http://localhost:4173) to view it in the browser.
+- `react` v18
+- `@reduxjs/toolkit` v2
+- `react-router-dom` v6
+- `typescript` v5
 
-The page will reload if you make edits.<br />
+## 指令
 
-### `yarn build`
+```bash
+# 安裝
+npm install
+# 開發
+npm dev
+# 打包
+npm build
+```
 
-Builds the app for production to the `dist` folder.<br />
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## 學習內容
 
-## Learn More
+- [Redux 學習歷程](https://hackmd.io/Kic_y5eZQZeM_9MjPJublw?view#reduxjstoolkit-v2)
+- optimistic update
 
-You can learn more about building and deploying in the [Vite docs](https://vitejs.dev/).
+```javascript
+// src/features/api/apiSlice.ts
+export const apiSlice = createApi({
+  endpoints: (builder) => ({
+    addReaction: builder.mutation({
+      query: ({ postId, reaction }) => ({
+        // ...
+      }),
+      async onQueryStarted({ postId, reaction }, api) {
+        const getPostPatchResult = api.dispatch(
+          apiSlice.util.updateQueryData(
+            "getPost",
+            postId,
+            (draft) => {
+              // ...
+            },
+          ),
+        );
 
-To learn React, check out the [React documentation](https://react.dev).
+        try {
+          await api.queryFulfilled;
+        } catch {
+          getPostPatchResult.undo();
+        }
+      },
+    }),
+  }),
+});
+```
+
+- WebSocket connection management
+
+```javascript
+// src/features/notifications/notificationsSlice.ts
+apiSlice.injectEndpoints({
+  endpoints: (builder) => ({
+    getNotifs: builder.query({
+      query: () => "/notifs",
+      async onCacheEntryAdded(arg, api) {
+        const ws = new WebSocket("ws://localhost");
+        try {
+          await api.cacheDataLoaded;
+
+          ws.addEventListener("message", (e) => {
+            const { type, payload } = JSON.parse(e.data);
+
+            switch (type) {
+              case "notifs": {
+                api.updateCachedData((notifs) => {
+                  // ...
+                });
+
+                break;
+              }
+            }
+          });
+        } catch {}
+
+        await api.cacheEntryRemoved;
+
+        ws.close();
+      },
+    }),
+  }),
+});
+```
+
+## 展望
+
+- 學習 WebSocket
