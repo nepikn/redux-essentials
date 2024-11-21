@@ -18,7 +18,7 @@
 
 ## 展示
 
-[部署於 codesandbox.io]()
+[於 codesandbox.io 檢視](https://codesandbox.io/p/devtool/preview/nepikn/redux-essentials/codesandbox?task=dev&port=5173&redirect=true&utm_source=gh_app)
 
 | 首頁    | 貼文    | 通知      |
 | ------- | ------- | --------- |
